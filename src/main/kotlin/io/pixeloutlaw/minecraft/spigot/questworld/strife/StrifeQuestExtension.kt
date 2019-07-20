@@ -5,6 +5,8 @@ import org.bukkit.plugin.Plugin
 
 class StrifeQuestExtension : QuestExtension() {
     override fun initialize(parent: Plugin?) {
-        setMissionTypes()
+        setMissionTypes(
+            ReachStrifeSkillLevelMission()
+        )
     }
 }
