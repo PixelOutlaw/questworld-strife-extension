@@ -1,6 +1,7 @@
 package io.pixeloutlaw.minecraft.spigot.questworld.strife
 
 import com.questworld.api.MissionType
+import com.questworld.api.QuestWorld
 import com.questworld.api.SinglePrompt
 import com.questworld.api.Ticking
 import com.questworld.api.contract.IMission
@@ -18,6 +19,8 @@ import info.faceland.strife.data.champion.LifeSkillType
 import info.faceland.strife.events.SkillLevelUpEvent
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.inventory.ItemStack
 import java.util.Locale
@@ -87,6 +90,16 @@ class ReachStrifeSkillLevelMission :
         })
 
         putButton(17, MissionButton.amount(changes))
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onSkillLevelUpEvent(event: SkillLevelUpEvent) {
+        for (missionEntry in QuestWorld.getMissionEntries(this, event.player)) {
+            val missionLifeSkillType = getSkill(missionEntry.mission)
+            if (event.skillType == missionLifeSkillType) {
+                missionEntry.progress = event.newSkillLevel
+            }
+        }
     }
 
     private fun getSkill(instance: IMission): LifeSkillType {
