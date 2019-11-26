@@ -35,22 +35,20 @@ import com.questworld.util.ItemBuilder
 import com.questworld.util.PlayerTools
 import com.questworld.util.Text
 import com.questworld.util.version.ObjectMap
-import land.face.strife.data.champion.LifeSkillType
-import land.face.strife.events.SkillLevelUpEvent
-import land.face.strife.util.PlayerDataUtil
+import land.face.strife.StrifePlugin
+import land.face.strife.events.UniqueKillEvent
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.inventory.ItemStack
-import java.util.Locale
 
-class ReachStrifeSkillLevelMission :
-    MissionType("REACH_STRIFE_SKILL_LEVEL", true, ItemStack(ObjectMap.VDMaterial.EXPERIENCE_BOTTLE)), Listener,
-    Ticking {
+class KillUniqueMission :
+        MissionType("KILL_STRIFE_UNIQUE", true, ItemStack(ObjectMap.VDMaterial.GOLDEN_SWORD)), Listener,
+        Ticking {
     override fun userInstanceDescription(instance: IMission?): String {
-        return "&7Reach level ${instance?.amount} in ${instance?.customString}"
+        return "&7Kill ${instance?.amount} of unique ${instance?.customString}"
     }
 
     override fun userDisplayItem(instance: IMission?): ItemStack {
@@ -58,23 +56,19 @@ class ReachStrifeSkillLevelMission :
     }
 
     override fun onManual(player: Player?, entry: MissionEntry?) {
-        if (player == null || entry == null) {
-            return
-        }
-        val lifeSkillType = getSkill(entry.mission)
-        entry.progress = PlayerDataUtil.getLifeSkillLevel(player, lifeSkillType)
+        return
     }
 
     override fun getLabel(): String {
-        return "&r> Click to check levels"
+        return "&r> Click to check kills"
     }
 
     override fun validate(instance: IMissionState?) {
         if (instance == null) {
             return
         }
-        if (!skillExists(instance.customString)) {
-            instance.customString = LifeSkillType.MINING.name
+        if (!StrifePlugin.getInstance().uniqueEntityManager.isLoadedUnique(instance.customString)) {
+            instance.customString = "NONE"
             instance.apply()
         }
     }
@@ -88,51 +82,34 @@ class ReachStrifeSkillLevelMission :
             playerWhoClicked.closeInventory()
 
             PlayerTools.promptInput(
-                playerWhoClicked,
-                SinglePrompt("&aEnter a skill name (cancel() to abort):") { conversationContext, input ->
-                    if (!input.equals("cancel()", ignoreCase = true)) {
-                        if (!skillExists(input)) {
-                            SinglePrompt.setNextDisplay(conversationContext, "&cInvalid skill: &r${input}")
-                            return@SinglePrompt false
-                        }
+                    playerWhoClicked,
+                    SinglePrompt("&aEnter a unique id (cancel() to abort):") { conversationContext, input ->
+                        if (!input.equals("cancel()", ignoreCase = true)) {
+                            if (!StrifePlugin.getInstance().uniqueEntityManager.loadedUniquesMap.containsKey(input)) {
+                                SinglePrompt.setNextDisplay(conversationContext, "&cInvalid id: &r${input}")
+                                return@SinglePrompt false
+                            }
 
-                        changes.customString = input.toUpperCase(Locale.ENGLISH)
-                        playerWhoClicked.sendMessage(Text.colorize("&aSuccessfully changed skill."))
-                    } else {
-                        playerWhoClicked.sendMessage(Text.colorize("&7Aborting..."))
-                    }
-                    QuestBook.openQuestMissionEditor(playerWhoClicked, changes)
-                    return@SinglePrompt true
-                })
+                            changes.customString = input
+                            playerWhoClicked.sendMessage(Text.colorize("&aSuccessfully set unique id"))
+                        } else {
+                            playerWhoClicked.sendMessage(Text.colorize("&7Aborting..."))
+                        }
+                        QuestBook.openQuestMissionEditor(playerWhoClicked, changes)
+                        return@SinglePrompt true
+                    })
         })
 
         putButton(17, MissionButton.amount(changes))
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    fun onSkillLevelUpEvent(event: SkillLevelUpEvent) {
-        for (missionEntry in QuestWorld.getMissionEntries(this, event.player)) {
-            val missionLifeSkillType = getSkill(missionEntry.mission)
-            if (event.skillType == missionLifeSkillType) {
-                missionEntry.progress = event.newSkillLevel
+    fun onStrifeMobKill(event: UniqueKillEvent) {
+        for (missionEntry in QuestWorld.getMissionEntries(this, event.killer)) {
+            val uniqueId = missionEntry.mission
+            if (uniqueId.customString == event.entity.uniqueEntityId) {
+                missionEntry.progress += 1
             }
-        }
-    }
-
-    private fun getSkill(instance: IMission): LifeSkillType {
-        return try {
-            LifeSkillType.valueOf(instance.customString)
-        } catch (ex: Exception) {
-            LifeSkillType.MINING
-        }
-    }
-
-    private fun skillExists(skillName: String): Boolean {
-        return try {
-            LifeSkillType.valueOf(skillName)
-            true
-        } catch (ex: Exception) {
-            false
         }
     }
 }
