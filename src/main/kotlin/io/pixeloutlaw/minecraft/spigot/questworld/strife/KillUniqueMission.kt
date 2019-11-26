@@ -67,7 +67,7 @@ class KillUniqueMission :
         if (instance == null) {
             return
         }
-        if (!StrifePlugin.getInstance().uniqueEntityManager.isLoadedUnique(instance.customString)) {
+        if (!StrifePlugin.getInstance().uniqueEntityManager.loadedUniquesMap.containsKey(instance.customString)) {
             instance.customString = "NONE"
             instance.apply()
         }
